@@ -1,0 +1,209 @@
+--[================================================]--
+--  DEW994 Hub - Special Version for Ninja Exec (Mobile)
+--[================================================]--
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+-- ค้นหาที่ลง GUI ที่เสถียรที่สุดสำหรับ Ninja
+local ParentGui = LocalPlayer:WaitForChild("PlayerGui")
+
+-- ลบ UI เก่าถ้ามีอยู่
+if ParentGui:FindFirstChild("DEW994_NINJA") then
+	ParentGui.DEW994_NINJA:Destroy()
+end
+
+-- สร้าง ScreenGui หลัก
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "DEW994_NINJA"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = ParentGui
+
+-- หน้าต่างหลัก (Main Frame)
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 220, 0, 320)
+MainFrame.Position = UDim2.new(0.5, -110, 0.3, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.Parent = ScreenGui
+
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 10)
+UICorner.Parent = MainFrame
+
+-- หัวข้อ (Title)
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 40)
+Title.BackgroundTransparency = 1
+Title.Text = "DEW994 HUB"
+Title.TextColor3 = Color3.fromRGB(0, 255, 170)
+Title.TextSize = 16
+Title.Font = Enum.Font.GothamBold
+Title.Parent = MainFrame
+
+-- ตัวแปรควบคุม
+local AimLockEnabled = false
+local AimDistance = 100 
+local ESPEnabled = false
+local ClickTPEnabled = false
+
+----------------------------------------------------
+-- 1. ฟังก์ชันล็อกหัว (Aim Lock)
+----------------------------------------------------
+RunService.Stepped:Connect(function()
+	if AimLockEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+		local closestDist = AimDistance
+		local targetHead = nil
+		
+		for _, player in pairs(Players:GetPlayers()) do
+			if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Head") and player.Character:FindFirstChild("Humanoid") then
+				if player.Character.Humanoid.Health > 0 then
+					local head = player.Character.Head
+					local dist = (head.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
+					if dist < closestDist then
+						closestDist = dist
+						targetHead = head
+					end
+				end
+			end
+		end
+		
+		if targetHead then
+			Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetHead.Position)
+		end
+	end
+end)
+
+----------------------------------------------------
+-- 2. ฟังก์ชันมองทะลุสีรุ้ง (Rainbow ESP)
+----------------------------------------------------
+task.spawn(function()
+	while task.wait(0.1) do
+		if ESPEnabled then
+			local hue = (tick() % 5) / 5
+			local rainbowColor = Color3.fromHSV(hue, 1, 1)
+
+			for _, player in pairs(Players:GetPlayers()) do
+				if player ~= LocalPlayer and player.Character then
+					local highlight = player.Character:FindFirstChild("DEW994_ESP")
+					if not highlight then
+						highlight = Instance.new("Highlight")
+						highlight.Name = "DEW994_ESP"
+						highlight.FillTransparency = 0.5
+						highlight.OutlineTransparency = 0
+						highlight.Parent = player.Character
+					end
+					highlight.FillColor = rainbowColor
+					highlight.OutlineColor = rainbowColor
+				end
+			end
+		else
+			for _, player in pairs(Players:GetPlayers()) do
+				if player.Character and player.Character:FindFirstChild("DEW994_ESP") then
+					player.Character.DEW994_ESP:Destroy()
+				end
+			end
+		end
+	end
+end)
+
+----------------------------------------------------
+-- 3. ฟังก์ชันกดวาร์ป (Click Teleport สำหรับมือถือ)
+----------------------------------------------------
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if gameProcessed or not ClickTPEnabled then return end
+
+	if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+		local unitRay = Camera:ScreenPointToRay(input.Position.X, input.Position.Y)
+		local raycastResult = workspace:Raycast(unitRay.Origin, unitRay.Direction * 1000)
+		
+		if raycastResult and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+			LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(raycastResult.Position + Vector3.new(0, 3, 0))
+		end
+	end
+end)
+
+----------------------------------------------------
+-- ปุ่มกดในเมนู UI
+----------------------------------------------------
+local function CreateButton(name, posY, callback)
+	local Btn = Instance.new("TextButton")
+	Btn.Size = UDim2.new(0, 180, 0, 35)
+	Btn.Position = UDim2.new(0.5, -90, 0, posY)
+	Btn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+	Btn.Text = name .. ": OFF"
+	Btn.TextColor3 = Color3.fromRGB(200, 200, 200)
+	Btn.TextSize = 12
+	Btn.Font = Enum.Font.GothamMedium
+	Btn.Parent = MainFrame
+
+	local BtnCorner = Instance.new("UICorner")
+	BtnCorner.CornerRadius = UDim.new(0, 6)
+	BtnCorner.Parent = Btn
+
+	local state = false
+	Btn.MouseButton1Click:Connect(function()
+		state = not state
+		if state then
+			Btn.Text = name .. ": ON"
+			Btn.BackgroundColor3 = Color3.fromRGB(0, 170, 100)
+			Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+		else
+			Btn.Text = name .. ": OFF"
+			Btn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+			Btn.TextColor3 = Color3.fromRGB(200, 200, 200)
+		end
+		callback(state)
+	end)
+end
+
+-- 1. ปุ่มล็อกหัว
+CreateButton("1. ล็อกหัว (Aim Lock)", 45, function(state)
+	AimLockEnabled = state
+end)
+
+-- ปรับระยะ
+local DistText = Instance.new("TextLabel")
+DistText.Size = UDim2.new(1, 0, 0, 20)
+DistText.Position = UDim2.new(0, 0, 0, 85)
+DistText.BackgroundTransparency = 1
+DistText.Text = "ระยะล็อก: " .. AimDistance .. " studs"
+DistText.TextColor3 = Color3.fromRGB(180, 180, 180)
+DistText.TextSize = 11
+DistText.Font = Enum.Font.Gotham
+DistText.Parent = MainFrame
+
+local AddBtn = Instance.new("TextButton")
+AddBtn.Size = UDim2.new(0, 85, 0, 25)
+AddBtn.Position = UDim2.new(0.5, -90, 0, 105)
+AddBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+AddBtn.Text = "+50 ระยะ"
+AddBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+AddBtn.TextSize = 10
+AddBtn.Parent = MainFrame
+
+local SubBtn = Instance.new("TextButton")
+SubBtn.Size = UDim2.new(0, 85, 0, 25)
+SubBtn.Position = UDim2.new(0.5, 5, 0, 105)
+SubBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+SubBtn.Text = "-50 ระยะ"
+SubBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+SubBtn.TextSize = 10
+SubBtn.Parent = MainFrame
+
+AddBtn.MouseButton1Click:Connect(function()
+	AimDistance = AimDistance + 50
+	DistText.Text = "ระยะล็อก: " .. AimDistance .. " studs"
+end)
+
+SubBtn.MouseButton1Click:Connect(function()
+	if AimDistance > 50 then
+		AimDistance = AimDistance - 50
+		Dist
